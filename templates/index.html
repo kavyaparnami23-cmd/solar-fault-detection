@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Solar Panel Fault Detection</title>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to right, #e3f2fd, #f1f8e9);
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 420px;
+            margin: 60px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0px 5px 20px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        input[type="file"] {
+            margin: 15px 0;
+        }
+
+        button {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #218838;
+        }
+
+        img {
+            width: 100%;
+            margin-top: 15px;
+            border-radius: 10px;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .prediction {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .confidence {
+            color: #555;
+        }
+
+        .action {
+            margin-top: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .clean {
+            color: green;
+        }
+
+        .dust {
+            color: orange;
+        }
+
+        .crack {
+            color: red;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: gray;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>☀️ Solar Panel Fault Detection</h2>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" required><br>
+        <button type="submit">Analyze Panel</button>
+    </form>
+
+    {% if image_path %}
+        <img src="{{ image_path }}">
+    {% endif %}
+
+    {% if prediction %}
+        <div class="result">
+
+            <div class="prediction">
+                Prediction: {{ prediction }}
+            </div>
+
+            <div class="confidence">
+                Confidence: {{ confidence }}%
+            </div>
+
+            <div class="action 
+                {% if 'Clean' in prediction %}clean
+                {% elif 'Dust' in prediction %}dust
+                {% else %}crack
+                {% endif %}
+            ">
+                Action: {{ action }}
+            </div>
+
+        </div>
+    {% endif %}
+
+    <div class="footer">
+        AI-based Solar Monitoring System
+    </div>
+
+</div>
+
+</body>
+</html>
