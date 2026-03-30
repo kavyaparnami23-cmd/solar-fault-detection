@@ -16,12 +16,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 IMG_SIZE = 224
 
 # ==============================
-# LOAD MODEL (SAFE PATH)
+# LOAD MODEL (SAFE + COMPATIBLE)
 # ==============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "solar_fault_model.keras")
 
-model = tf.keras.models.load_model(MODEL_PATH)
+# Fix for Keras compatibility
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
 CLASS_NAMES = ['clean', 'crack', 'dust']
 
@@ -34,7 +35,6 @@ def preprocess_image(image_path):
     img = img.resize((IMG_SIZE, IMG_SIZE))
     img = np.array(img)
 
-    # For EfficientNet
     img = tf.keras.applications.efficientnet.preprocess_input(img)
 
     img = np.expand_dims(img, axis=0)
@@ -58,13 +58,13 @@ def home():
         file = request.files.get("file")
 
         if not file or file.filename == "":
-            error = "⚠️ Please upload an image"
+            error = "Please upload an image"
         else:
             filename = secure_filename(file.filename)
 
             # Validate file type
             if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-                error = "❌ Only JPG/PNG allowed"
+                error = "Only JPG/PNG files are allowed"
             else:
                 try:
                     filepath = os.path.join(UPLOAD_FOLDER, filename)
@@ -81,18 +81,18 @@ def home():
 
                     confidence = round(float(preds[predicted_index]) * 100, 2)
 
-                    # 🔥 DECISION LOGIC
+                    # Decision logic
                     if label == "crack":
                         prediction = "Crack Detected"
-                        action = "⚠️ Repair Required"
+                        action = "Repair Required"
 
                     elif label == "dust":
                         prediction = "Dust Detected"
-                        action = "🧹 Cleaning Required"
+                        action = "Cleaning Required"
 
                     else:
                         prediction = "Clean Panel"
-                        action = "✅ No Action Needed"
+                        action = "No Action Needed"
 
                     print("Predictions:", preds)
 
@@ -110,7 +110,7 @@ def home():
 
 
 # ==============================
-# RUN SERVER (DEPLOY READY)
+# RUN SERVER
 # ==============================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
