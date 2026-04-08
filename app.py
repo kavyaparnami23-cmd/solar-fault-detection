@@ -1,117 +1,98 @@
+# =====================================
+# IMPORTS
+# =====================================
 from flask import Flask, render_template, request
 import tensorflow as tf
 import numpy as np
-from PIL import Image
 import os
 from werkzeug.utils import secure_filename
 
-# ==============================
-# APP CONFIG
-# ==============================
+# =====================================
+# INIT
+# =====================================
 app = Flask(__name__)
-
 UPLOAD_FOLDER = "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-IMG_SIZE = 224
+# =====================================
+# LOAD MODEL
+# =====================================
+model = tf.keras.models.load_model("final_model .h5")
 
-# ==============================
-# LOAD MODEL (SAFE + COMPATIBLE)
-# ==============================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "solar_fault_model.keras")
+class_names = ['clean', 'crack', 'dust']
+IMG_SIZE = (224,224)
 
-# Fix for Keras compatibility
-model = tf.keras.models.load_model(MODEL_PATH, compile=False)
-
-CLASS_NAMES = ['clean', 'crack', 'dust']
-
-
-# ==============================
-# IMAGE PREPROCESSING
-# ==============================
-def preprocess_image(image_path):
-    img = Image.open(image_path).convert("RGB")
-    img = img.resize((IMG_SIZE, IMG_SIZE))
-    img = np.array(img)
+# =====================================
+# PREDICTION FUNCTION
+# =====================================
+def predict_image(img_path):
+    img = tf.keras.preprocessing.image.load_img(img_path, target_size=IMG_SIZE)
+    img = tf.keras.preprocessing.image.img_to_array(img)
+    img = np.expand_dims(img, axis=0)
 
     img = tf.keras.applications.efficientnet.preprocess_input(img)
 
-    img = np.expand_dims(img, axis=0)
-    return img
+    preds = model.predict(img)[0]
 
+    predicted_class = class_names[np.argmax(preds)]
+    confidence = float(np.max(preds) * 100)
 
-# ==============================
-# MAIN ROUTE
-# ==============================
+    return predicted_class, confidence, preds
+
+# =====================================
+# ROUTE
+# =====================================
 @app.route("/", methods=["GET", "POST"])
 def home():
-
     prediction = None
     confidence = None
-    image_path = None
     action = None
-    error = None
+    image_path = None
 
     if request.method == "POST":
+        file = request.files["file"]
 
-        file = request.files.get("file")
-
-        if not file or file.filename == "":
-            error = "Please upload an image"
-        else:
+        if file:
             filename = secure_filename(file.filename)
+            path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(path)
 
-            # Validate file type
-            if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-                error = "Only JPG/PNG files are allowed"
+            pred, conf, probs = predict_image(path)
+
+            # 🔥 OPTIMIZED LOGIC
+            dust_prob = probs[2] * 100
+            crack_prob = probs[1] * 100
+            clean_prob = probs[0] * 100
+
+            # 🔥 Smarter decision
+            if dust_prob > 75:
+                final_pred = "DUST"
+                action = "Cleaning Required 🧹"
+                confidence = round(dust_prob, 2)
+
+            elif crack_prob > 60:
+                final_pred = "CRACK"
+                action = "Maintenance Required ⚠️"
+                confidence = round(crack_prob, 2)
+
             else:
-                try:
-                    filepath = os.path.join(UPLOAD_FOLDER, filename)
-                    file.save(filepath)
+                final_pred = "CLEAN"
+                action = "No Action Needed ✅"
+                confidence = round(clean_prob, 2)
 
-                    image_path = filepath
-
-                    img = preprocess_image(filepath)
-
-                    preds = model.predict(img)[0]
-
-                    predicted_index = np.argmax(preds)
-                    label = CLASS_NAMES[predicted_index]
-
-                    confidence = round(float(preds[predicted_index]) * 100, 2)
-
-                    # Decision logic
-                    if label == "crack":
-                        prediction = "Crack Detected"
-                        action = "Repair Required"
-
-                    elif label == "dust":
-                        prediction = "Dust Detected"
-                        action = "Cleaning Required"
-
-                    else:
-                        prediction = "Clean Panel"
-                        action = "No Action Needed"
-
-                    print("Predictions:", preds)
-
-                except Exception as e:
-                    error = f"Error: {str(e)}"
+            prediction = final_pred
+            image_path = path
 
     return render_template(
         "index.html",
         prediction=prediction,
         confidence=confidence,
         action=action,
-        image_path=image_path,
-        error=error
+        image_path=image_path
     )
 
-
-# ==============================
-# RUN SERVER
-# ==============================
+# =====================================
+# RUN
+# =====================================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run()

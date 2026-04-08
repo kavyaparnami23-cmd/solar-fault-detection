@@ -1,0 +1,89 @@
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(-45deg, #1e3c72, #2a5298, #0f2027);
+    background-size: 400% 400%;
+    animation: gradient 10s ease infinite;
+    color: white;
+}
+
+@keyframes gradient {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
+
+.container {
+    text-align: center;
+    margin-top: 50px;
+}
+
+h1 {
+    margin-bottom: 30px;
+}
+
+/* Card */
+.card {
+    width: 450px;
+    margin: auto;
+    padding: 25px;
+    border-radius: 20px;
+    backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.1);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+
+/* Upload */
+input {
+    padding: 10px;
+    margin: 10px;
+    border-radius: 8px;
+}
+
+button {
+    padding: 10px 20px;
+    background: #00c853;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #00e676;
+    transform: scale(1.05);
+}
+
+/* Result Box */
+.result-box {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 15px;
+    background: rgba(0,0,0,0.3);
+}
+
+.result-box h2 {
+    color: #ffd54f;
+}
+
+/* Confidence */
+.confidence {
+    margin-top: 10px;
+    font-size: 16px;
+}
+
+/* Action */
+.action {
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #ff5252;
+}
+
+/* Image */
+.image-box img {
+    margin-top: 20px;
+    width: 100%;
+    border-radius: 12px;
+}
