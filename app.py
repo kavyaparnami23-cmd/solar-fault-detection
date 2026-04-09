@@ -12,15 +12,16 @@ from werkzeug.utils import secure_filename
 # =====================================
 app = Flask(__name__)
 UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # ✅ ensure folder exists
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # =====================================
-# LOAD MODEL
+# LOAD MODEL (FIXED PATH ❗)
 # =====================================
-model = tf.keras.models.load_model("final_model .h5")
+model = tf.keras.models.load_model("final_model.h5")  # ❗ removed space
 
 class_names = ['clean', 'crack', 'dust']
-IMG_SIZE = (224,224)
+IMG_SIZE = (224, 224)
 
 # =====================================
 # PREDICTION FUNCTION
@@ -50,38 +51,43 @@ def home():
     image_path = None
 
     if request.method == "POST":
+        if "file" not in request.files:
+            return render_template("index.html")
+
         file = request.files["file"]
 
-        if file:
-            filename = secure_filename(file.filename)
-            path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            file.save(path)
+        if file.filename == "":
+            return render_template("index.html")
 
-            pred, conf, probs = predict_image(path)
+        filename = secure_filename(file.filename)
+        path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        file.save(path)
 
-            # 🔥 OPTIMIZED LOGIC
-            dust_prob = probs[2] * 100
-            crack_prob = probs[1] * 100
-            clean_prob = probs[0] * 100
+        pred, conf, probs = predict_image(path)
 
-            # 🔥 Smarter decision
-            if dust_prob > 75:
-                final_pred = "DUST"
-                action = "Cleaning Required 🧹"
-                confidence = round(dust_prob, 2)
+        # 🔥 PROBABILITIES
+        dust_prob = probs[2] * 100
+        crack_prob = probs[1] * 100
+        clean_prob = probs[0] * 100
 
-            elif crack_prob > 60:
-                final_pred = "CRACK"
-                action = "Maintenance Required ⚠️"
-                confidence = round(crack_prob, 2)
+        # 🔥 DECISION LOGIC
+        if dust_prob > 75:
+            final_pred = "DUST"
+            action = "Cleaning Required 🧹"
+            confidence = round(dust_prob, 2)
 
-            else:
-                final_pred = "CLEAN"
-                action = "No Action Needed ✅"
-                confidence = round(clean_prob, 2)
+        elif crack_prob > 60:
+            final_pred = "CRACK"
+            action = "Maintenance Required ⚠️"
+            confidence = round(crack_prob, 2)
 
-            prediction = final_pred
-            image_path = path
+        else:
+            final_pred = "CLEAN"
+            action = "No Action Needed ✅"
+            confidence = round(clean_prob, 2)
+
+        prediction = final_pred
+        image_path = path
 
     return render_template(
         "index.html",
@@ -91,8 +97,14 @@ def home():
         image_path=image_path
     )
 
+# ✅ HEALTH CHECK (IMPORTANT FOR RENDER)
+@app.route("/health")
+def health():
+    return "OK", 200
+
 # =====================================
-# RUN
+# RUN (FIXED FOR RENDER ❗)
 # =====================================
 if __name__ == "__main__":
-    app.run()
+    port = int(os.environ.get("PORT", 10000))  # ❗ important
+    app.run(host="0.0.0.0", port=port)
