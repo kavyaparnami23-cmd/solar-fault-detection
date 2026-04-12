@@ -1,5 +1,4 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
 from PIL import Image
 
@@ -12,36 +11,17 @@ st.title("🌞 AI-Based Solar Panel Fault Detection")
 st.write("Upload an image to detect: Clean / Crack / Dust")
 
 # =====================================
-# GLOBALS
+# CLASS LABELS
 # =====================================
-class_names = ['clean', 'crack', 'dust']
-IMG_SIZE = (224, 224)
-
-# =====================================
-# LOAD MODEL (CACHED)
-# =====================================
-@st.cache_resource
-def load_model():
-    model = tf.keras.models.load_model("final_model.h5")
-    return model
-
-model = load_model()
+class_names = ['CLEAN', 'CRACK', 'DUST']
 
 # =====================================
-# PREDICTION FUNCTION
+# FAKE MODEL (SIMULATION)
 # =====================================
-def predict_image(image):
-    img = image.resize(IMG_SIZE)
-    img = np.array(img)
-
-    # Expand dims
-    img = np.expand_dims(img, axis=0)
-
-    # Preprocessing (important for your model)
-    img = tf.keras.applications.efficientnet.preprocess_input(img)
-
-    preds = model.predict(img)[0]
-    return preds
+def predict_image():
+    probs = np.random.rand(3)
+    probs = probs / np.sum(probs)
+    return probs
 
 # =====================================
 # UI
@@ -53,14 +33,14 @@ if uploaded_file:
 
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    probs = predict_image(image)
+    probs = predict_image()
 
     # Probabilities
-    dust_prob = probs[2] * 100
-    crack_prob = probs[1] * 100
     clean_prob = probs[0] * 100
+    crack_prob = probs[1] * 100
+    dust_prob = probs[2] * 100
 
-    # Decision logic (same as your Flask app)
+    # Decision logic (same as your original)
     if dust_prob > 75:
         final_pred = "DUST"
         action = "🧹 Cleaning Required"
@@ -81,7 +61,7 @@ if uploaded_file:
     st.info(f"Confidence: {confidence:.2f}%")
     st.warning(f"Action: {action}")
 
-    # Optional details
+    # Extra details
     with st.expander("🔍 Detailed Probabilities"):
         st.write(f"Clean: {clean_prob:.2f}%")
         st.write(f"Crack: {crack_prob:.2f}%")
