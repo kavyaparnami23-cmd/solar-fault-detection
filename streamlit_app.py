@@ -3,33 +3,24 @@ import numpy as np
 from PIL import Image
 import tensorflow as tf
 
-# =========================
-# Load Model
-# =========================
+# Load model
 @st.cache_resource
 def load_model():
     return tf.keras.models.load_model("final_model.h5", compile=False)
 
 model = load_model()
 
-# =========================
-# Class Labels
-# =========================
+# Classes
 CLASSES = ["Clean", "Crack", "Dust"]
 
-# =========================
-# Preprocess Image
-# =========================
+# Preprocess
 def preprocess(image):
     image = image.resize((224, 224))
     image = np.array(image) / 255.0
     image = np.expand_dims(image, axis=0)
     return image
 
-# =========================
-# UI STARTS HERE
-# =========================
-
+# UI
 st.title("Solar Panel Fault Detection")
 
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
