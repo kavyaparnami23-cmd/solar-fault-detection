@@ -1,7 +1,7 @@
 import streamlit as st
+import tensorflow as tf
 import numpy as np
 from PIL import Image
-import tflite_runtime.interpreter as tflite
 
 # =====================================
 # PAGE CONFIG
@@ -12,38 +12,35 @@ st.title("🌞 AI-Based Solar Panel Fault Detection")
 st.write("Upload an image to detect: Clean / Crack / Dust")
 
 # =====================================
-# LOAD TFLITE MODEL
+# GLOBALS
+# =====================================
+class_names = ['clean', 'crack', 'dust']
+IMG_SIZE = (224, 224)
+
+# =====================================
+# LOAD MODEL (CACHED)
 # =====================================
 @st.cache_resource
 def load_model():
-    interpreter = tflite.Interpreter(model_path="model.tflite")
-    interpreter.allocate_tensors()
-    return interpreter
+    model = tf.keras.models.load_model("final_model.h5")
+    return model
 
-interpreter = load_model()
-
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-
-class_names = ['clean', 'crack', 'dust']
-IMG_SIZE = (224, 224)
+model = load_model()
 
 # =====================================
 # PREDICTION FUNCTION
 # =====================================
 def predict_image(image):
     img = image.resize(IMG_SIZE)
-    img = np.array(img).astype(np.float32)
+    img = np.array(img)
 
-    # Normalize if needed (important!)
-    img = img / 255.0  
-
+    # Expand dims
     img = np.expand_dims(img, axis=0)
 
-    interpreter.set_tensor(input_details[0]['index'], img)
-    interpreter.invoke()
+    # Preprocessing (important for your model)
+    img = tf.keras.applications.efficientnet.preprocess_input(img)
 
-    preds = interpreter.get_tensor(output_details[0]['index'])[0]
+    preds = model.predict(img)[0]
     return preds
 
 # =====================================
@@ -58,11 +55,12 @@ if uploaded_file:
 
     probs = predict_image(image)
 
-    # SAME LOGIC AS YOUR ORIGINAL CODE
+    # Probabilities
     dust_prob = probs[2] * 100
     crack_prob = probs[1] * 100
     clean_prob = probs[0] * 100
 
+    # Decision logic (same as your Flask app)
     if dust_prob > 75:
         final_pred = "DUST"
         action = "🧹 Cleaning Required"
@@ -78,12 +76,12 @@ if uploaded_file:
         action = "✅ No Action Needed"
         confidence = clean_prob
 
-    # OUTPUT
+    # Output
     st.success(f"Prediction: {final_pred}")
     st.info(f"Confidence: {confidence:.2f}%")
     st.warning(f"Action: {action}")
 
-    # EXTRA (nice for project)
+    # Optional details
     with st.expander("🔍 Detailed Probabilities"):
         st.write(f"Clean: {clean_prob:.2f}%")
         st.write(f"Crack: {crack_prob:.2f}%")
