@@ -1,10 +1,10 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import tensorflow as tf
+import tflite_runtime.interpreter as tflite
 
 # Load TFLite model
-interpreter = tf.lite.Interpreter(model_path="model.tflite")
+interpreter = tflite.Interpreter(model_path="model.tflite")
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
@@ -22,12 +22,10 @@ if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image")
 
-    # Preprocess
     img = image.resize(IMG_SIZE)
-    img = np.array(img) / 255.0   # IMPORTANT
+    img = np.array(img) / 255.0
     img = np.expand_dims(img, axis=0).astype(np.float32)
 
-    # Prediction
     interpreter.set_tensor(input_details[0]['index'], img)
     interpreter.invoke()
     preds = interpreter.get_tensor(output_details[0]['index'])[0]
@@ -36,7 +34,6 @@ if uploaded_file:
     prediction = class_names[index]
     confidence = preds[index] * 100
 
-    # Action logic
     if prediction == "dust":
         action = "Cleaning Required"
     elif prediction == "crack":
