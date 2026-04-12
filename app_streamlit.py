@@ -1,46 +1,49 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
+import tensorflow as tf
 
-# Page config
-st.set_page_config(page_title="Solar Fault Detection", layout="centered")
+# Load TFLite model
+interpreter = tf.lite.Interpreter(model_path="model.tflite")
+interpreter.allocate_tensors()
+
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+class_names = ['clean', 'crack', 'dust']
+IMG_SIZE = (224, 224)
 
 st.title("AI-Based Solar Panel Fault Detection")
 st.write("Upload an image to detect: Clean / Crack / Dust")
 
-# Classes
-class_names = ['CLEAN', 'CRACK', 'DUST']
-
-# Dummy prediction (NO TensorFlow)
-def predict_image():
-    probs = np.random.rand(3)
-    probs = probs / np.sum(probs)
-    return probs
-
-# Upload
-uploaded_file = st.file_uploader("Upload Solar Panel Image", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image, caption="Uploaded Image")
 
-    probs = predict_image()
+    # Preprocess
+    img = image.resize(IMG_SIZE)
+    img = np.array(img) / 255.0   # IMPORTANT
+    img = np.expand_dims(img, axis=0).astype(np.float32)
 
-    clean_prob = probs[0] * 100
-    crack_prob = probs[1] * 100
-    dust_prob = probs[2] * 100
+    # Prediction
+    interpreter.set_tensor(input_details[0]['index'], img)
+    interpreter.invoke()
+    preds = interpreter.get_tensor(output_details[0]['index'])[0]
 
-    final_index = np.argmax(probs)
-    final_pred = class_names[final_index]
-    confidence = probs[final_index] * 100
+    index = np.argmax(preds)
+    prediction = class_names[index]
+    confidence = preds[index] * 100
 
-    if final_pred == "DUST":
+    # Action logic
+    if prediction == "dust":
         action = "Cleaning Required"
-    elif final_pred == "CRACK":
+    elif prediction == "crack":
         action = "Maintenance Required"
     else:
         action = "No Action Needed"
 
-    st.success(f"Prediction: {final_pred}")
+    st.success(f"Prediction: {prediction}")
     st.info(f"Confidence: {confidence:.2f}%")
     st.warning(f"Action: {action}")
