@@ -3,44 +3,39 @@ import numpy as np
 from PIL import Image
 import tflite_runtime.interpreter as tflite
 
-# Load TFLite model
+# Load model
 interpreter = tflite.Interpreter(model_path="model.tflite")
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
-class_names = ['clean', 'crack', 'dust']
 IMG_SIZE = (224, 224)
+class_names = ['clean', 'crack', 'dust']
 
-st.title("AI-Based Solar Panel Fault Detection")
-st.write("Upload an image to detect: Clean / Crack / Dust")
+def predict(image):
+    image = image.resize(IMG_SIZE)
+    img = np.array(image).astype(np.float32)
+    img = np.expand_dims(img, axis=0)
+
+    interpreter.set_tensor(input_details[0]['index'], img)
+    interpreter.invoke()
+
+    preds = interpreter.get_tensor(output_details[0]['index'])[0]
+    return preds
+
+st.title("Solar Panel Fault Detection")
 
 uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file:
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image")
+    image = Image.open(uploaded_file)
+    st.image(image)
 
-    img = image.resize(IMG_SIZE)
-    img = np.array(img) / 255.0
-    img = np.expand_dims(img, axis=0).astype(np.float32)
+    preds = predict(image)
 
-    interpreter.set_tensor(input_details[0]['index'], img)
-    interpreter.invoke()
-    preds = interpreter.get_tensor(output_details[0]['index'])[0]
+    predicted_class = class_names[np.argmax(preds)]
+    confidence = np.max(preds) * 100
 
-    index = np.argmax(preds)
-    prediction = class_names[index]
-    confidence = preds[index] * 100
-
-    if prediction == "dust":
-        action = "Cleaning Required"
-    elif prediction == "crack":
-        action = "Maintenance Required"
-    else:
-        action = "No Action Needed"
-
-    st.success(f"Prediction: {prediction}")
-    st.info(f"Confidence: {confidence:.2f}%")
-    st.warning(f"Action: {action}")
+    st.write("Prediction:", predicted_class)
+    st.write("Confidence:", round(confidence, 2))
