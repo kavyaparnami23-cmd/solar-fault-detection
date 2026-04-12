@@ -1,126 +1,88 @@
-# =====================================
-# IMPORTS
-# =====================================
-from flask import Flask, render_template, request
+import streamlit as st
 import tensorflow as tf
 import numpy as np
-import os
-from werkzeug.utils import secure_filename
-from flask_cors import CORS
+from PIL import Image
 
 # =====================================
-# INIT
+# CONFIG
 # =====================================
-app = Flask(__name__)
-CORS(app)
+st.set_page_config(page_title="Solar Fault Detection", layout="centered")
 
-UPLOAD_FOLDER = "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+st.title("🌞 AI-Based Solar Panel Fault Detection")
+st.write("Upload an image to detect: Clean / Crack / Dust")
 
 # =====================================
 # GLOBALS
 # =====================================
-model = None
 class_names = ['clean', 'crack', 'dust']
 IMG_SIZE = (224, 224)
 
 # =====================================
-# LOAD MODEL (LAZY LOADING 🔥)
+# LOAD MODEL (CACHED 🔥)
 # =====================================
-def load_model_once():
-    global model
-    if model is None:
-        print("Loading model...")
-        model = tf.keras.models.load_model("final_model.h5")
-        print("Model loaded successfully")
+@st.cache_resource
+def load_model():
+    model = tf.keras.models.load_model("final_model.h5")
+    return model
+
+model = load_model()
 
 # =====================================
 # PREDICTION FUNCTION
 # =====================================
-def predict_image(img_path):
-    load_model_once()
-
-    img = tf.keras.preprocessing.image.load_img(img_path, target_size=IMG_SIZE)
-    img = tf.keras.preprocessing.image.img_to_array(img)
+def predict_image(image):
+    img = image.resize(IMG_SIZE)
+    img = np.array(img)
     img = np.expand_dims(img, axis=0)
 
     img = tf.keras.applications.efficientnet.preprocess_input(img)
 
     preds = model.predict(img)[0]
-
-    predicted_class = class_names[np.argmax(preds)]
-    confidence = float(np.max(preds) * 100)
-
-    return predicted_class, confidence, preds
+    return preds
 
 # =====================================
-# ROUTE
+# UI - FILE UPLOAD
 # =====================================
-@app.route("/", methods=["GET", "POST"])
-def home():
-    prediction = None
-    confidence = None
-    action = None
-    image_path = None
+uploaded_file = st.file_uploader("📤 Upload Solar Panel Image", type=["jpg", "png", "jpeg"])
 
-    if request.method == "POST":
-        if "file" not in request.files:
-            return render_template("index.html")
+if uploaded_file:
+    image = Image.open(uploaded_file)
 
-        file = request.files["file"]
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-        if file.filename == "":
-            return render_template("index.html")
+    probs = predict_image(image)
 
-        filename = secure_filename(file.filename)
-        path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(path)
+    # =====================================
+    # SAME LOGIC AS YOUR FLASK APP
+    # =====================================
+    dust_prob = probs[2] * 100
+    crack_prob = probs[1] * 100
+    clean_prob = probs[0] * 100
 
-        pred, conf, probs = predict_image(path)
+    if dust_prob > 75:
+        final_pred = "DUST"
+        action = "🧹 Cleaning Required"
+        confidence = dust_prob
 
-        # 🔥 PROBABILITIES
-        dust_prob = probs[2] * 100
-        crack_prob = probs[1] * 100
-        clean_prob = probs[0] * 100
+    elif crack_prob > 60:
+        final_pred = "CRACK"
+        action = "⚠️ Maintenance Required"
+        confidence = crack_prob
 
-        # 🔥 DECISION LOGIC
-        if dust_prob > 75:
-            final_pred = "DUST"
-            action = "Cleaning Required 🧹"
-            confidence = round(dust_prob, 2)
+    else:
+        final_pred = "CLEAN"
+        action = "✅ No Action Needed"
+        confidence = clean_prob
 
-        elif crack_prob > 60:
-            final_pred = "CRACK"
-            action = "Maintenance Required ⚠️"
-            confidence = round(crack_prob, 2)
+    # =====================================
+    # OUTPUT
+    # =====================================
+    st.success(f"Prediction: {final_pred}")
+    st.info(f"Confidence: {confidence:.2f}%")
+    st.warning(f"Action: {action}")
 
-        else:
-            final_pred = "CLEAN"
-            action = "No Action Needed ✅"
-            confidence = round(clean_prob, 2)
-
-        prediction = final_pred
-        image_path = path
-
-    return render_template(
-        "index.html",
-        prediction=prediction,
-        confidence=confidence,
-        action=action,
-        image_path=image_path
-    )
-
-# =====================================
-# HEALTH CHECK (IMPORTANT FOR RENDER)
-# =====================================
-@app.route("/health")
-def health():
-    return "OK", 200
-
-# =====================================
-# RUN (RENDER COMPATIBLE)
-# =====================================
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    # Optional: show probabilities
+    with st.expander("🔍 Detailed Probabilities"):
+        st.write(f"Clean: {clean_prob:.2f}%")
+        st.write(f"Crack: {crack_prob:.2f}%")
+        st.write(f"Dust: {dust_prob:.2f}%")
