@@ -6,27 +6,41 @@ import tensorflow as tf
 import numpy as np
 import os
 from werkzeug.utils import secure_filename
+from flask_cors import CORS
 
 # =====================================
 # INIT
 # =====================================
 app = Flask(__name__)
+CORS(app)
+
 UPLOAD_FOLDER = "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # ✅ ensure folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # =====================================
-# LOAD MODEL (FIXED PATH ❗)
+# GLOBALS
 # =====================================
-model = tf.keras.models.load_model("final_model.h5")  # ❗ removed space
-
+model = None
 class_names = ['clean', 'crack', 'dust']
 IMG_SIZE = (224, 224)
+
+# =====================================
+# LOAD MODEL (LAZY LOADING 🔥)
+# =====================================
+def load_model_once():
+    global model
+    if model is None:
+        print("Loading model...")
+        model = tf.keras.models.load_model("final_model.h5")
+        print("Model loaded successfully")
 
 # =====================================
 # PREDICTION FUNCTION
 # =====================================
 def predict_image(img_path):
+    load_model_once()
+
     img = tf.keras.preprocessing.image.load_img(img_path, target_size=IMG_SIZE)
     img = tf.keras.preprocessing.image.img_to_array(img)
     img = np.expand_dims(img, axis=0)
@@ -97,14 +111,16 @@ def home():
         image_path=image_path
     )
 
-# ✅ HEALTH CHECK (IMPORTANT FOR RENDER)
+# =====================================
+# HEALTH CHECK (IMPORTANT FOR RENDER)
+# =====================================
 @app.route("/health")
 def health():
     return "OK", 200
 
 # =====================================
-# RUN (FIXED FOR RENDER ❗)
+# RUN (RENDER COMPATIBLE)
 # =====================================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # ❗ important
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
