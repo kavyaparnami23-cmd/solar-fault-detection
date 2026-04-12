@@ -3,62 +3,44 @@ import numpy as np
 from PIL import Image
 import tensorflow as tf
 
-# ===============================
+# =========================
 # Load Model
-# ===============================
+# =========================
 @st.cache_resource
 def load_model():
     return tf.keras.models.load_model("final_model.h5", compile=False)
 
 model = load_model()
 
-# ===============================
-# Class Labels (IMPORTANT ORDER)
-# ===============================
+# =========================
+# Class Labels
+# =========================
 CLASSES = ["Clean", "Crack", "Dust"]
 
-# ===============================
+# =========================
 # Preprocess Image
-# ===============================
+# =========================
 def preprocess(image):
-    img = image.resize((224, 224))
-    img = np.array(img).astype(np.float32)
+    image = image.resize((224, 224))
+    image = np.array(image) / 255.0
+    image = np.expand_dims(image, axis=0)
+    return image
 
-    # Match training preprocessing
-    img = img / 255.0
+# =========================
+# UI STARTS HERE
+# =========================
 
-    img = np.expand_dims(img, axis=0)
-    return img
-
-# ===============================
-# Predict Function
-# ===============================
-def predict(image):
-    processed = preprocess(image)
-    preds = model.predict(processed, verbose=0)[0]
-    return preds
-
-# ===============================
-# UI
-# ===============================
 st.title("Solar Panel Fault Detection")
 
-uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
 
-# ===============================
-# Prediction Output
-# ===============================
 if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("RGB")
-
+    image = Image.open(uploaded_file)
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    preds = predict(image)
+    img = preprocess(image)
+    prediction = model.predict(img)
+    class_index = np.argmax(prediction)
+    result = CLASSES[class_index]
 
-    index = int(np.argmax(preds))
-    label = CLASSES[index]
-    confidence = float(preds[index]) * 100
-
-    st.subheader("Result")
-    st.write(f"Prediction: {label}")
-    st.write(f"Confidence: {confidence:.2f}%")
+    st.subheader(f"Prediction: {result}")
