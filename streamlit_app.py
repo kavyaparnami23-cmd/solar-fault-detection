@@ -1,94 +1,64 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
 from PIL import Image
+import tensorflow as tf
 
-# ================================
-# PAGE CONFIG
-# ================================
-st.set_page_config(page_title="Solar Panel Fault Detection", layout="centered")
-
-st.title("AI-Based Solar Panel Fault Detection")
-st.write("Upload an image to detect: Clean / Crack / Dust")
-
-# ================================
-# LOAD MODEL (cached for speed)
-# ================================
+# ===============================
+# Load Model
+# ===============================
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("final_model.h5", compile=False)
-    return model
+    return tf.keras.models.load_model("final_model.h5", compile=False)
 
 model = load_model()
 
-# ================================
-# GLOBALS
-# ================================
-IMG_SIZE = (224, 224)
-class_names = ['CLEAN', 'CRACK', 'DUST']
+# ===============================
+# Class Labels (IMPORTANT ORDER)
+# ===============================
+CLASSES = ["Clean", "Crack", "Dust"]
 
-# ================================
-# PREDICTION FUNCTION
-# ================================
-def predict_image(image):
-    image = image.resize(IMG_SIZE)
-    img = np.array(image).astype(np.float32)
+# ===============================
+# Preprocess Image
+# ===============================
+def preprocess(image):
+    img = image.resize((224, 224))
+    img = np.array(img).astype(np.float32)
 
-    # IMPORTANT: match training preprocessing
+    # Match training preprocessing
     img = img / 255.0
 
     img = np.expand_dims(img, axis=0)
+    return img
 
-    preds = model.predict(img)[0]
+# ===============================
+# Predict Function
+# ===============================
+def predict(image):
+    processed = preprocess(image)
+    preds = model.predict(processed, verbose=0)[0]
     return preds
 
-# ================================
+# ===============================
 # UI
-# ================================
-uploaded_file = st.file_uploader("Upload Solar Panel Image", type=["jpg", "png", "jpeg"])
+# ===============================
+st.title("Solar Panel Fault Detection")
 
-if uploaded_file:
+uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+
+# ===============================
+# Prediction Output
+# ===============================
+if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
 
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    preds = predict_image(image)
+    preds = predict(image)
 
-    # Probabilities
-    clean_prob = preds[0] * 100
-    crack_prob = preds[1] * 100
-    dust_prob = preds[2] * 100
+    index = int(np.argmax(preds))
+    label = CLASSES[index]
+    confidence = float(preds[index]) * 100
 
-    # Final prediction (argmax)
-    final_index = np.argmax(preds)
-    prediction = class_names[final_index]
-    confidence = preds[final_index] * 100
-
-    # ================================
-    # OUTPUT
-    # ================================
     st.subheader("Result")
-    st.write(f"Prediction: {prediction}")
+    st.write(f"Prediction: {label}")
     st.write(f"Confidence: {confidence:.2f}%")
-
-    # ================================
-    # ACTION LOGIC
-    # ================================
-    if prediction == "DUST":
-        action = "Cleaning Required"
-    elif prediction == "CRACK":
-        action = "Maintenance Required"
-    else:
-        action = "No Action Needed"
-
-    st.write(f"Action: {action}")
-
-    # ================================
-    # DEBUG (optional, can remove later)
-    # ================================
-    with st.expander("Detailed Probabilities"):
-        st.write({
-            "Clean": round(clean_prob, 2),
-            "Crack": round(crack_prob, 2),
-            "Dust": round(dust_prob, 2)
-        })
