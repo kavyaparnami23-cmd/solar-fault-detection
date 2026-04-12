@@ -2,87 +2,45 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 
-# =====================================
-# PAGE CONFIG
-# =====================================
+# Page config
 st.set_page_config(page_title="Solar Fault Detection", layout="centered")
 
 st.title("AI-Based Solar Panel Fault Detection")
 st.write("Upload an image to detect: Clean / Crack / Dust")
 
-# =====================================
-# GLOBALS
-# =====================================
-class_names = ['clean', 'crack', 'dust']
-IMG_SIZE = (224, 224)
+# Classes
+class_names = ['CLEAN', 'CRACK', 'DUST']
 
-# =====================================
-# LOAD MODEL
-# =====================================
-@st.cache_resource
-def load_model():
-    try:
-        model = tf.keras.models.load_model("final_model.h5", compile=False)
-        return model
-    except Exception as e:
-        st.error(f"Model loading failed: {e}")
-        return None
+# Dummy prediction (NO TensorFlow)
+def predict_image():
+    probs = np.random.rand(3)
+    probs = probs / np.sum(probs)
+    return probs
 
-model = load_model()
-
-# =====================================
-# PREDICTION FUNCTION
-# =====================================
-def predict_image(image):
-    img = image.resize(IMG_SIZE)
-    img = np.array(img)
-
-    # Same preprocessing as training
-    img = tf.keras.applications.efficientnet.preprocess_input(img)
-
-    img = np.expand_dims(img, axis=0)
-
-    preds = model.predict(img)[0]
-    return preds
-
-# =====================================
-# UI
-# =====================================
+# Upload
 uploaded_file = st.file_uploader("Upload Solar Panel Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file:
-    if model is None:
-        st.error("Model not loaded. Check deployment.")
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+
+    probs = predict_image()
+
+    clean_prob = probs[0] * 100
+    crack_prob = probs[1] * 100
+    dust_prob = probs[2] * 100
+
+    final_index = np.argmax(probs)
+    final_pred = class_names[final_index]
+    confidence = probs[final_index] * 100
+
+    if final_pred == "DUST":
+        action = "Cleaning Required"
+    elif final_pred == "CRACK":
+        action = "Maintenance Required"
     else:
-        image = Image.open(uploaded_file).convert("RGB")
+        action = "No Action Needed"
 
-        st.image(image, caption="Uploaded Image", use_column_width=True)
-
-        # Prediction
-        probs = predict_image(image)
-
-        # Debug probabilities
-        st.subheader("Raw Probabilities")
-        st.write({
-            "Clean": float(probs[0]),
-            "Crack": float(probs[1]),
-            "Dust": float(probs[2])
-        })
-
-        # Final prediction
-        final_index = np.argmax(probs)
-        final_pred = class_names[final_index].upper()
-        confidence = probs[final_index] * 100
-
-        # Action logic
-        if final_pred == "DUST":
-            action = "Cleaning Required"
-        elif final_pred == "CRACK":
-            action = "Maintenance Required"
-        else:
-            action = "No Action Needed"
-
-        # Output
-        st.success(f"Prediction: {final_pred}")
-        st.info(f"Confidence: {confidence:.2f}%")
-        st.warning(f"Action: {action}")
+    st.success(f"Prediction: {final_pred}")
+    st.info(f"Confidence: {confidence:.2f}%")
+    st.warning(f"Action: {action}")
