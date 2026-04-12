@@ -1,10 +1,10 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
 from PIL import Image
+import tflite_runtime.interpreter as tflite
 
 # =====================================
-# CONFIG
+# PAGE CONFIG
 # =====================================
 st.set_page_config(page_title="Solar Fault Detection", layout="centered")
 
@@ -12,36 +12,42 @@ st.title("🌞 AI-Based Solar Panel Fault Detection")
 st.write("Upload an image to detect: Clean / Crack / Dust")
 
 # =====================================
-# GLOBALS
-# =====================================
-class_names = ['clean', 'crack', 'dust']
-IMG_SIZE = (224, 224)
-
-# =====================================
-# LOAD MODEL (CACHED 🔥)
+# LOAD TFLITE MODEL
 # =====================================
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("final_model.h5")
-    return model
+    interpreter = tflite.Interpreter(model_path="model.tflite")
+    interpreter.allocate_tensors()
+    return interpreter
 
-model = load_model()
+interpreter = load_model()
+
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+class_names = ['clean', 'crack', 'dust']
+IMG_SIZE = (224, 224)
 
 # =====================================
 # PREDICTION FUNCTION
 # =====================================
 def predict_image(image):
     img = image.resize(IMG_SIZE)
-    img = np.array(img)
+    img = np.array(img).astype(np.float32)
+
+    # Normalize if needed (important!)
+    img = img / 255.0  
+
     img = np.expand_dims(img, axis=0)
 
-    img = tf.keras.applications.efficientnet.preprocess_input(img)
+    interpreter.set_tensor(input_details[0]['index'], img)
+    interpreter.invoke()
 
-    preds = model.predict(img)[0]
+    preds = interpreter.get_tensor(output_details[0]['index'])[0]
     return preds
 
 # =====================================
-# UI - FILE UPLOAD
+# UI
 # =====================================
 uploaded_file = st.file_uploader("📤 Upload Solar Panel Image", type=["jpg", "png", "jpeg"])
 
@@ -52,9 +58,7 @@ if uploaded_file:
 
     probs = predict_image(image)
 
-    # =====================================
-    # SAME LOGIC AS YOUR FLASK APP
-    # =====================================
+    # SAME LOGIC AS YOUR ORIGINAL CODE
     dust_prob = probs[2] * 100
     crack_prob = probs[1] * 100
     clean_prob = probs[0] * 100
@@ -74,14 +78,12 @@ if uploaded_file:
         action = "✅ No Action Needed"
         confidence = clean_prob
 
-    # =====================================
     # OUTPUT
-    # =====================================
     st.success(f"Prediction: {final_pred}")
     st.info(f"Confidence: {confidence:.2f}%")
     st.warning(f"Action: {action}")
 
-    # Optional: show probabilities
+    # EXTRA (nice for project)
     with st.expander("🔍 Detailed Probabilities"):
         st.write(f"Clean: {clean_prob:.2f}%")
         st.write(f"Crack: {crack_prob:.2f}%")
