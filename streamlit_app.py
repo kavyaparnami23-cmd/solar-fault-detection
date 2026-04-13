@@ -9,6 +9,7 @@ class_names = ['clean', 'crack', 'dust']
 @st.cache_resource
 def load_model():
     model = tf.keras.models.load_model("final_model.h5")
+                                       
     return model
 
 model = load_model()
