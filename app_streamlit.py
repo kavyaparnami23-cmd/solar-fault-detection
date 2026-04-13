@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-import tflite_runtime.interpreter as tflite
+import tensorflow as tf
 from PIL import Image
 
 IMG_SIZE = (224, 224)
@@ -8,7 +8,7 @@ class_names = ['clean', 'crack', 'dust']
 
 @st.cache_resource
 def load_model():
-    interpreter = tflite.Interpreter(model_path="model.tflite")
+    interpreter = tf.lite.Interpreter(model_path="model.tflite")
     interpreter.allocate_tensors()
     return interpreter
 
@@ -20,6 +20,7 @@ output_details = interpreter.get_output_details()
 def preprocess_image(image):
     image = image.resize(IMG_SIZE)
     img = np.array(image).astype(np.float32)
+    img = tf.keras.applications.efficientnet.preprocess_input(img)
     img = np.expand_dims(img, axis=0)
     return img
 
