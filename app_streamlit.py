@@ -68,4 +68,7 @@ if uploaded_file:
     st.write("### Probabilities:")
     st.write(f"Clean: {clean_prob:.2f}%")
     st.write(f"Crack: {crack_prob:.2f}%")
+
+    st.write(f"Dust: {dust_prob:.2f}%")
+
     st.write(f"Dust: {dust_prob:.2f}%")
