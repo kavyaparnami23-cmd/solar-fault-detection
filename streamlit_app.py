@@ -1,14 +1,14 @@
 import streamlit as st
 import numpy as np
+import tensorflow as tf
 from PIL import Image
-from tflite_runtime.interpreter import Interpreter
 
 IMG_SIZE = (224, 224)
 class_names = ['clean', 'crack', 'dust']
 
 @st.cache_resource
 def load_model():
-    interpreter = Interpreter(model_path="model.tflite")
+    interpreter = tf.lite.Interpreter(model_path="model.tflite")
     interpreter.allocate_tensors()
     return interpreter
 
@@ -19,20 +19,19 @@ output_details = interpreter.get_output_details()
 
 def preprocess_image(image):
     image = image.resize(IMG_SIZE)
-    img = np.array(image)
-    input_dtype = input_details[0]['dtype']
-    img = img.astype(input_dtype)
+    img = np.array(image).astype(np.float32)
 
-    if input_dtype == np.float32:
-        img = img / 255.0
+    img = img / 255.0
 
     img = np.expand_dims(img, axis=0)
     return img
 
 def predict(image):
     img = preprocess_image(image)
+
     interpreter.set_tensor(input_details[0]['index'], img)
     interpreter.invoke()
+
     preds = interpreter.get_tensor(output_details[0]['index'])[0]
     return preds
 
