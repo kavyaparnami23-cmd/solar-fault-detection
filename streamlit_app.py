@@ -31,19 +31,18 @@ def predict(image):
     return output[0]
 
 st.title("Solar Panel Fault Detection ⚡")
-st.write("Upload an image to detect Clean / Crack / Dust")
 
-uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
 
-if uploaded_file is not None:
+if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image)
 
     preds = predict(image)
 
     pred_index = np.argmax(preds)
     final_pred = class_names[pred_index].upper()
-    confidence = round(preds[pred_index] * 100, 2)
+    confidence = round(preds[pred_index]*100,2)
 
     if final_pred == "DUST":
         action = "Cleaning Required 🧹"
@@ -52,7 +51,7 @@ if uploaded_file is not None:
     else:
         action = "No Action Needed ✅"
 
-    st.subheader(f"Prediction: {final_pred}")
+    st.success(f"Prediction: {final_pred}")
     st.write(f"Confidence: {confidence}%")
     st.write(f"Action: {action}")
 
