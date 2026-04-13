@@ -2,15 +2,17 @@ import streamlit as st
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+import os
 
 IMG_SIZE = (224, 224)
 
 DUST_THRESHOLD = 75
 CRACK_THRESHOLD = 60
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def load_model():
-    model = tf.keras.models.load_model("final_model.h5")
+    model_path = os.path.join(os.path.dirname(__file__), "final_model.h5")
+    model = tf.keras.models.load_model(model_path)
     return model
 
 model = load_model()
@@ -30,6 +32,7 @@ def predict(image):
 st.set_page_config(page_title="Solar Fault Detection", page_icon="⚡")
 
 st.title("⚡ Solar Panel Fault Detection")
+st.write("Upload an image to detect Clean / Crack / Dust")
 
 uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 
@@ -45,17 +48,17 @@ if uploaded_file:
 
     if dust_prob > DUST_THRESHOLD:
         final_pred = "DUST"
-        action = " Cleaning Required"
+        action = "🧹 Cleaning Required"
         confidence = dust_prob
 
     elif crack_prob > CRACK_THRESHOLD:
         final_pred = "CRACK"
-        action = " Maintenance Required"
+        action = "⚠️ Maintenance Required"
         confidence = crack_prob
 
     else:
         final_pred = "CLEAN"
-        action = " No Action Needed"
+        action = "✅ No Action Needed"
         confidence = clean_prob
 
     st.success(f"Prediction: {final_pred}")
