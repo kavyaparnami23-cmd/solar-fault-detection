@@ -1,4 +1,4 @@
-streamlit
-numpy
+streamlit==1.32.0
+numpy==1.24.3
 pillow
-tflite-runtime
+tensorflow==2.13.0
