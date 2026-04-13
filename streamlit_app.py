@@ -1,13 +1,14 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import tensorflow as tf
+from tflite_runtime.interpreter import Interpreter
 
-
+IMG_SIZE = (224, 224)
+class_names = ['clean', 'crack', 'dust']
 
 @st.cache_resource
 def load_model():
-    interpreter = tf.lite.Interpreter(model_path="model.tflite")
+    interpreter = Interpreter(model_path="model.tflite")
     interpreter.allocate_tensors()
     return interpreter
 
@@ -16,46 +17,52 @@ interpreter = load_model()
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
+def preprocess_image(image):
+    image = image.resize(IMG_SIZE)
+    img = np.array(image)
+    input_dtype = input_details[0]['dtype']
+    img = img.astype(input_dtype)
 
-
-
-CLASSES = ["Clean", "Crack", "Dust"]
-
-
-def preprocess(image):
-    img = image.resize((224, 224))
-    img = np.array(img).astype(np.float32)
-
-    # Match training preprocessing
-    img = img / 255.0
+    if input_dtype == np.float32:
+        img = img / 255.0
 
     img = np.expand_dims(img, axis=0)
     return img
 
-
 def predict(image):
-    processed = preprocess(image)
-    preds = model.predict(processed, verbose=0)[0]
+    img = preprocess_image(image)
+    interpreter.set_tensor(input_details[0]['index'], img)
+    interpreter.invoke()
+    preds = interpreter.get_tensor(output_details[0]['index'])[0]
     return preds
 
-
-st.title("Solar Panel Fault Detection")
+st.title("Solar Panel Fault Detection ⚡")
+st.write("Upload an image to detect Clean / Crack / Dust")
 
 uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
-
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    img = preprocess(image)
-    prediction = model.predict(img)
-    class_index = np.argmax(prediction)
-    result = CLASSES[class_index]
+    preds = predict(image)
 
-    index = int(np.argmax(preds))
-    label = CLASSES[index]
-    confidence = float(preds[index]) * 100
+    pred_index = np.argmax(preds)
+    final_pred = class_names[pred_index].upper()
+    confidence = round(preds[pred_index] * 100, 2)
 
-    st.subheader("Result")
-    st.write(f"Prediction: {label}")
-    st.write(f"Confidence: {confidence:.2f}%")
+    if final_pred == "DUST":
+        action = "Cleaning Required 🧹"
+    elif final_pred == "CRACK":
+        action = "Maintenance Required ⚠️"
+    else:
+        action = "No Action Needed ✅"
+
+    st.subheader(f"Prediction: {final_pred}")
+    st.write(f"Confidence: {confidence}%")
+    st.write(f"Action: {action}")
+
+    st.write("### Probabilities:")
+    st.write(f"Clean: {preds[0]*100:.2f}%")
+    st.write(f"Crack: {preds[1]*100:.2f}%")
+    st.write(f"Dust: {preds[2]*100:.2f}%")
