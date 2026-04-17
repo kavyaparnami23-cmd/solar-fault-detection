@@ -34,17 +34,12 @@ def predict(image):
 st.title("Solar Panel Fault Detection ⚡")
 
 
+st.info("📸 **Image Upload Guide:** For the highest AI precision, take standard close-up photos of the **solar panel glass only**. Try to exclude background mounts, colored meshes, or GPS text overlays from the frame.")
+
 uploaded_file = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
 
 if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
-    
-    remove_geotag = st.checkbox("Remove GPS/Geotag Overlay", help="Check this if your image has a timestamp or map overlay at the bottom that might confuse the AI.")
-    if remove_geotag:
-        width, height = image.size
-        # Crop the bottom 30% of the image where geotags usually are
-        image = image.crop((0, 0, width, int(height * 0.70)))
-        
     st.image(image)
 
     preds = predict(image)
