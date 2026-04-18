@@ -1,15 +1,15 @@
 {
   "version": 2,
-  "functions": {
-    "api/predict.py": {
-      "runtime": "@vercel/python",
-      "maxDuration": 30,
-      "memory": 1024,
-      "includeFiles": "model.tflite"
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
     }
-  },
+  ],
   "routes": [
-    { "src": "/predict", "dest": "/api/predict" },
-    { "src": "/(.*)", "dest": "/$1" }
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
   ]
 }
