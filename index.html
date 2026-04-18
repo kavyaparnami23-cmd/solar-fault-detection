@@ -9,6 +9,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap"
     rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
   <style>
     *,
     *::before,
@@ -2383,7 +2384,7 @@
         toast("✓ Motor command sent!");
       } catch (e) {
         logAlert("critical", `Motor trigger failed: ${e.message}`);
-        toast("✗ Motor trigger failed.", "error");
+        toast("✗ Motor trigger failed.", "error")
       }
     }
 
@@ -2398,23 +2399,49 @@
       if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
     });
     function handleFile(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+    let _tfjsModel = null;
     async function processFile(file) {
       const reader = new FileReader();
       reader.onload = ev => { preview.src = ev.target.result; preview.style.display = "block"; };
       reader.readAsDataURL(file);
       document.getElementById("result-area").style.display = "none";
       document.getElementById("spinner-wrap").style.display = "flex";
-      const form = new FormData();
-      form.append("image", file);
       try {
-        const res = await fetch(`${FLASK_BASE}/predict`, { method: "POST", body: form });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        showResult(data);
+        // Wait for preview image to fully load in DOM
+        await new Promise(resolve => {
+          const img = document.getElementById("preview-img");
+          if (img.complete && img.naturalWidth > 0) resolve();
+          else img.onload = resolve;
+        });
+        // Load TF.js model (cached after first load)
+        if (!_tfjsModel) {
+          _tfjsModel = await tf.loadGraphModel('/model.tflite', { fromTFHub: false }).catch(() => null);
+        }
+        if (_tfjsModel) {
+          // Browser-side inference
+          const img = document.getElementById("preview-img");
+          const tensor = tf.browser.fromPixels(img)
+            .resizeBilinear([224, 224])
+            .toFloat()
+            .expandDims(0);
+          const preds = _tfjsModel.predict(tensor);
+          const values = await preds.data();
+          tensor.dispose(); preds.dispose();
+          const CN = ["clean", "crack", "dust"];
+          const idx = values.indexOf(Math.max(...values));
+          showResult({ label: CN[idx], confidence: values[idx], probabilities: { clean: values[0], crack: values[1], dust: values[2] } });
+        } else {
+          // Fallback to server
+          const form = new FormData(); form.append("image", file);
+          const res = await fetch(`${FLASK_BASE}/predict`, { method: "POST", body: form });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          showResult(data);
+        }
       } catch (e) {
         document.getElementById("spinner-wrap").style.display = "none";
         logAlert("critical", `Prediction failed: ${e.message}`);
-        toast("✗ Model error: " + e.message, "error");
+        toast("\u2717 Model error: " + e.message, "error");
       }
     }
     function showResult(data) {
