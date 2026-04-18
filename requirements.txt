@@ -3,5 +3,3 @@ flask-cors
 numpy
 Pillow
 tflite-runtime
-PyGithub
-requests
