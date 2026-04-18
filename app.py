@@ -5,10 +5,13 @@ import io
 import os
 
 try:
-    import tensorflow as tf
-    TFLiteInterpreter = tf.lite.Interpreter
+    from ai_edge_litert.interpreter import Interpreter as TFLiteInterpreter
 except ImportError:
-    from tflite_runtime.interpreter import Interpreter as TFLiteInterpreter
+    try:
+        from tflite_runtime.interpreter import Interpreter as TFLiteInterpreter
+    except ImportError:
+        import tensorflow as tf
+        TFLiteInterpreter = tf.lite.Interpreter
 
 from PIL import Image
 

@@ -1,6 +1,5 @@
 flask==2.3.3
 numpy==1.24.3
 pillow==10.0.0
-tflite-runtime==2.14.0
-requests==2.31.0
+ai-edge-litert
 Werkzeug==2.3.7
