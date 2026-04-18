@@ -1,4 +1,5 @@
-streamlit
+flask
+flask-cors
 numpy
 Pillow
 tflite-runtime
